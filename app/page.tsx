@@ -125,7 +125,7 @@ export default function Dashboard(){
   const deliveredTotal=cats('anDel')+cats('nmDel');
   const pendingDeliveryTotal=cats('anPdel')+cats('nmPdel');
   const capacityViolations=joined.filter(r=>r.cat.anGen+r.cat.nmGen>r.m.grandTotal).length;
-  const validation=[
+  const validation: Array<[string,number,number,boolean]> = [
     ['ECI PS count',eci.length,430,eci.length===430],
     ['Master PS count',master.length,430,master.length===430],
     ['Generated split',generatedTotal,sum('Notice Generated'),generatedTotal===sum('Notice Generated')],
