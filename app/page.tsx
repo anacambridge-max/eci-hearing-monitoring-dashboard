@@ -20,9 +20,8 @@ function DashboardEnhancer(){
       const headers=Array.from(table.querySelectorAll('thead tr:first-child th')) as HTMLTableCellElement[];
       const labels=headers.map(h=>normalize(h.innerText||''));
       if(!labels.includes('ANOM PENDING GEN')||!labels.includes('NO MAP PENDING GEN'))return;
-      const statusIndex=labels.indexOf('STATUS');
-      if(statusIndex<0)return;
-      const statusHeader=headers[statusIndex];
+      const statusHeader=headers[labels.indexOf('STATUS')];
+      if(!statusHeader)return;
       let select=statusHeader.querySelector('select') as HTMLSelectElement|null;
       if(!select){
         statusHeader.dataset.statusDropdownEnhanced='1';
@@ -43,7 +42,7 @@ function DashboardEnhancer(){
         const nmPend=Number((cells[8]?.innerText||'0').replace(/,/g,''));
         const anGen=Number((cells[5]?.innerText||'0').replace(/,/g,''));
         const nmGen=Number((cells[7]?.innerText||'0').replace(/,/g,''));
-        const cell=cells[statusIndex];
+        const cell=cells[cells.length-1];
         if(!cell)return;
         const statuses:string[]=[];
         if(anPend>0)statuses.push('ANOMALY · PENDING GENERATION');
@@ -64,11 +63,9 @@ function DashboardEnhancer(){
       const headers=Array.from(table.querySelectorAll('thead tr:first-child th')) as HTMLTableCellElement[];
       const labels=headers.map(h=>normalize(h.innerText||''));
       if(!labels.includes('ANOMALY')||!labels.includes('NO MAPPING'))return;
-      const statusIndex=labels.indexOf('STATUS');
-      if(statusIndex<0)return;
 
-      // Generated Notices is a delivery register. Pending-generation states do not belong here.
-      // Replace the status cell with one unambiguous generated-notice delivery status.
+      // Generated Notices is strictly a generated-notice delivery register.
+      // Never show pending-generation status here; that belongs in PS Wise/Pending.
       Array.from(table.tBodies[0]?.rows||[]).forEach(row=>{
         const cells=row.cells;
         const anGen=Number((cells[5]?.innerText||'0').replace(/,/g,''));
@@ -80,7 +77,7 @@ function DashboardEnhancer(){
         const generated=anGen+nmGen;
         const delivered=anDel+nmDel;
         const pendingDelivery=anPdel+nmPdel;
-        const cell=cells[statusIndex];
+        const cell=cells[cells.length-2];
         if(!cell||generated<=0)return;
         const type=anGen>0&&nmGen>0?'MIXED':anGen>0?'ANOMALY':'NO MAPPING';
         let base='CHECK';
