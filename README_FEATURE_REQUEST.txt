@@ -1,0 +1,1 @@
+Feature request context: Add a Generated Notices operational list showing all generated notice counts by PS/officer/location with delivered and pending-delivery status, and improve overall dashboard reconciliation.
