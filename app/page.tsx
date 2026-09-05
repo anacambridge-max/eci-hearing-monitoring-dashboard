@@ -8,12 +8,14 @@ function DashboardEnhancer(){
     const sortState=new WeakMap<HTMLTableElement,{index:number,asc:boolean}>();
     const parse=(v:string)=>{const x=v.replace(/,/g,'').replace(/%/g,'').trim();return x!==''&&Number.isFinite(Number(x))?Number(x):v.toLowerCase()};
     const normalize=(v:string)=>v.replace(/\s+/g,' ').trim().toUpperCase();
+
     const filterPSWise=(table:HTMLTableElement,value:string)=>{
       Array.from(table.tBodies[0]?.rows||[]).forEach(row=>{
         const status=row.cells[row.cells.length-1]?.dataset.categoryStatus||'';
         row.style.display=value==='All Status'||status.split(' | ').includes(value)?'':'none';
       });
     };
+
     const enhancePSWiseStatus=(table:HTMLTableElement)=>{
       const headers=Array.from(table.querySelectorAll('thead tr:first-child th')) as HTMLTableCellElement[];
       const labels=headers.map(h=>normalize(h.innerText||''));
@@ -57,8 +59,64 @@ function DashboardEnhancer(){
       select=statusHeader.querySelector('select') as HTMLSelectElement|null;
       if(select)filterPSWise(table,select.value||'All Status');
     };
+
+    const enhanceGenerated=(table:HTMLTableElement)=>{
+      const headers=Array.from(table.querySelectorAll('thead tr:first-child th')) as HTMLTableCellElement[];
+      const labels=headers.map(h=>normalize(h.innerText||''));
+      if(!labels.includes('ANOMALY')||!labels.includes('NO MAPPING'))return;
+      const statusIndex=labels.indexOf('STATUS');
+      if(statusIndex<0)return;
+
+      // Generated Notices is a delivery register. Pending-generation states do not belong here.
+      // Replace the status cell with one unambiguous generated-notice delivery status.
+      Array.from(table.tBodies[0]?.rows||[]).forEach(row=>{
+        const cells=row.cells;
+        const anGen=Number((cells[5]?.innerText||'0').replace(/,/g,''));
+        const anDel=Number((cells[6]?.innerText||'0').replace(/,/g,''));
+        const anPdel=Number((cells[7]?.innerText||'0').replace(/,/g,''));
+        const nmGen=Number((cells[9]?.innerText||'0').replace(/,/g,''));
+        const nmDel=Number((cells[10]?.innerText||'0').replace(/,/g,''));
+        const nmPdel=Number((cells[11]?.innerText||'0').replace(/,/g,''));
+        const generated=anGen+nmGen;
+        const delivered=anDel+nmDel;
+        const pendingDelivery=anPdel+nmPdel;
+        const cell=cells[statusIndex];
+        if(!cell||generated<=0)return;
+        const type=anGen>0&&nmGen>0?'MIXED':anGen>0?'ANOMALY':'NO MAPPING';
+        let base='CHECK';
+        if(delivered>=generated)base='FULLY DELIVERED';
+        else if(delivered>0&&pendingDelivery>0)base='PARTIAL DELIVERY';
+        else if(delivered===0&&pendingDelivery>0)base='NOT DELIVERED';
+        const next=`${base} · ${type}`;
+        if(cell.dataset.generatedStatus!==next){
+          cell.dataset.generatedStatus=next;
+          const badge=document.createElement('span');
+          badge.className='deliveryBadge';
+          badge.textContent=next;
+          cell.replaceChildren(badge);
+        }
+      });
+    };
+
+    const enhanceGeneratedFilter=()=>{
+      const active=document.querySelector('.tab.active')?.textContent?.trim()||'';
+      if(active!=='Generated Notices')return;
+      const selects=Array.from(document.querySelectorAll('select')) as HTMLSelectElement[];
+      const status=selects.find(x=>x.getAttribute('aria-label')==='Status')||selects.find(x=>Array.from(x.options).some(o=>normalize(o.textContent||'').includes('FULLY DELIVERED')));
+      if(!status)return;
+      const valid=['All','NO MAPPING · FULLY DELIVERED','NO MAPPING · PARTIAL DELIVERY','NO MAPPING · NOT DELIVERED','ANOMALY · FULLY DELIVERED','ANOMALY · PARTIAL DELIVERY','ANOMALY · NOT DELIVERED','MIXED · FULLY DELIVERED','MIXED · PARTIAL DELIVERY','MIXED · NOT DELIVERED'];
+      if(status.dataset.generatedFilterEnhanced!=='1'){
+        status.dataset.generatedFilterEnhanced='1';
+        const current=status.value;
+        status.replaceChildren(...valid.map(x=>{const o=document.createElement('option');o.value=x;o.textContent=x==='All'?'All Status':x;return o}));
+        status.value=valid.includes(current)?current:'All';
+        if(status.value!==current)status.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    };
+
     const attach=(table:HTMLTableElement)=>{
       enhancePSWiseStatus(table);
+      enhanceGenerated(table);
       const headers=Array.from(table.querySelectorAll('thead tr:first-child th')) as HTMLTableCellElement[];
       const active=document.querySelector('.tab.active')?.textContent?.trim()||'';
       headers.forEach((h,index)=>{
@@ -74,7 +132,7 @@ function DashboardEnhancer(){
           let cellIndex=index;
           const currentLabel=(h.innerText||'').replace(/\s[↑↓]$/,'').trim();
           if(active==='Generated Notices'){
-            const map:Record<string,number>={PS:1,'Old PS':2,BLO:3,Officer:4,'Hearing Location':5,'Delivery %':17,Hearings:18};
+            const map:Record<string,number>={PS:0,'Old PS':1,BLO:2,Officer:3,'Hearing Location':4,'Delivery %':16,Hearings:17};
             if(!(currentLabel in map))return;
             cellIndex=map[currentLabel];
           }
@@ -97,45 +155,14 @@ function DashboardEnhancer(){
         });
       });
     };
+
     let decorating=false;
     const decorate=()=>{
       if(decorating)return;
       decorating=true;
       try{
         document.querySelectorAll('table').forEach(t=>attach(t as HTMLTableElement));
-        const active=document.querySelector('.tab.active')?.textContent?.trim()||'';
-        if(active==='Generated Notices'){
-          document.querySelectorAll('table tbody tr').forEach(row=>{
-            const cells=row.querySelectorAll('td');
-            const delivered=Number((cells[15]?.innerText||'0').replace(/,/g,''));
-            const pending=Number((cells[16]?.innerText||'0').replace(/,/g,''));
-            const anGen=Number((cells[6]?.innerText||'0').replace(/,/g,''));
-            const nmGen=Number((cells[10]?.innerText||'0').replace(/,/g,''));
-            const badge=cells[19]?.querySelector('.deliveryBadge');
-            if(badge){
-              const type=anGen>0&&nmGen>0?'MIXED':anGen>0?'ANOMALY':'NO MAPPING';
-              const base=pending>0&&delivered>0?'PARTIAL DELIVERY':pending>0?'PENDING DELIVERY':delivered>0?'FULLY DELIVERED':'NOT DELIVERED';
-              const next=`${base} · ${type}`;
-              if(badge.textContent!==next)badge.textContent=next;
-            }
-          });
-        }
-        if(active==='Pending'){
-          document.querySelectorAll('table tbody tr').forEach(row=>{
-            const cells=row.querySelectorAll('td');
-            const pgen=Number((cells[3]?.innerText||'0').replace(/,/g,''));
-            const pdel=Number((cells[4]?.innerText||'0').replace(/,/g,''));
-            const pct=Number((cells[5]?.innerText||'0').replace(/%/g,''));
-            const badge=cells[6]?.querySelector('.deliveryBadge');
-            if(badge){
-              let next='PENDING GENERATION';
-              if(pgen>0&&pdel>0)next='PARTIAL DELIVERY · PENDING GENERATION';
-              else if(pdel>0)next='PENDING DELIVERY';
-              else if(pgen>0&&pct>0)next='FULLY DELIVERED · PENDING GENERATION';
-              if(badge.textContent!==next)badge.textContent=next;
-            }
-          });
-        }
+        enhanceGeneratedFilter();
       }finally{decorating=false}
     };
     const observer=new MutationObserver(decorate);
