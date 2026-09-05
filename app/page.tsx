@@ -21,20 +21,20 @@ function DashboardEnhancer(){
       const statusIndex=labels.indexOf('STATUS');
       if(statusIndex<0)return;
       const statusHeader=headers[statusIndex];
-      if(statusHeader.dataset.statusDropdownEnhanced!=='1'){
+      let select=statusHeader.querySelector('select') as HTMLSelectElement|null;
+      if(!select){
         statusHeader.dataset.statusDropdownEnhanced='1';
         statusHeader.classList.remove('sortable');
         statusHeader.removeAttribute('title');
-        const select=document.createElement('select');
+        select=document.createElement('select');
         select.setAttribute('aria-label','PS Wise Category Status');
-        select.style.cssText='min-width:180px;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px';
+        select.style.cssText='min-width:220px;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px';
         const options=['All Status','ANOMALY · PENDING GENERATION','NO MAPPING · PENDING GENERATION','ANOMALY · GENERATED','NO MAPPING · GENERATED','ANOMALY · CLEAR','NO MAPPING · CLEAR'];
-        options.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;select.appendChild(o)});
+        options.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;select!.appendChild(o)});
         statusHeader.replaceChildren(select);
         select.addEventListener('click',e=>e.stopPropagation());
-        select.addEventListener('change',()=>filterPSWise(table,select.value));
+        select.addEventListener('change',()=>filterPSWise(table,select!.value));
       }
-      const select=statusHeader.querySelector('select') as HTMLSelectElement|null;
       Array.from(table.tBodies[0]?.rows||[]).forEach(row=>{
         const cells=row.cells;
         const anPend=Number((cells[6]?.innerText||'0').replace(/,/g,''));
@@ -51,15 +51,10 @@ function DashboardEnhancer(){
         else if(nmGen>0)statuses.push('NO MAPPING · GENERATED');
         else statuses.push('NO MAPPING · CLEAR');
         const value=statuses.join(' | ');
-        if(cell.dataset.categoryStatus!==value){
-          cell.dataset.categoryStatus=value;
-          const sel=document.createElement('select');
-          sel.setAttribute('aria-label','Category status');
-          sel.style.cssText='min-width:180px;font-size:10px;font-weight:700;padding:4px 6px;border-radius:6px';
-          statuses.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;sel.appendChild(o)});
-          cell.replaceChildren(sel);
-        }
+        cell.dataset.categoryStatus=value;
+        cell.textContent=value;
       });
+      select=statusHeader.querySelector('select') as HTMLSelectElement|null;
       if(select)filterPSWise(table,select.value||'All Status');
     };
     const attach=(table:HTMLTableElement)=>{
@@ -102,40 +97,46 @@ function DashboardEnhancer(){
         });
       });
     };
+    let decorating=false;
     const decorate=()=>{
-      document.querySelectorAll('table').forEach(t=>attach(t as HTMLTableElement));
-      const active=document.querySelector('.tab.active')?.textContent?.trim()||'';
-      if(active==='Generated Notices'){
-        document.querySelectorAll('table tbody tr').forEach(row=>{
-          const cells=row.querySelectorAll('td');
-          const delivered=Number((cells[15]?.innerText||'0').replace(/,/g,''));
-          const pending=Number((cells[16]?.innerText||'0').replace(/,/g,''));
-          const anGen=Number((cells[6]?.innerText||'0').replace(/,/g,''));
-          const nmGen=Number((cells[10]?.innerText||'0').replace(/,/g,''));
-          const badge=cells[19]?.querySelector('.deliveryBadge');
-          if(badge){
-            const type=anGen>0&&nmGen>0?'MIXED':anGen>0?'ANOMALY':'NO MAPPING';
-            const base=pending>0&&delivered>0?'PARTIAL DELIVERY':pending>0?'PENDING DELIVERY':delivered>0?'FULLY DELIVERED':'NOT DELIVERED';
-            badge.textContent=`${base} · ${type}`;
-          }
-        });
-      }
-      if(active==='Pending'){
-        document.querySelectorAll('table tbody tr').forEach(row=>{
-          const cells=row.querySelectorAll('td');
-          const pgen=Number((cells[3]?.innerText||'0').replace(/,/g,''));
-          const pdel=Number((cells[4]?.innerText||'0').replace(/,/g,''));
-          const pct=Number((cells[5]?.innerText||'0').replace(/%/g,''));
-          const badge=cells[6]?.querySelector('.deliveryBadge');
-          if(badge){
-            let next='PENDING GENERATION';
-            if(pgen>0&&pdel>0)next='PARTIAL DELIVERY · PENDING GENERATION';
-            else if(pdel>0)next='PENDING DELIVERY';
-            else if(pgen>0&&pct>0)next='FULLY DELIVERED · PENDING GENERATION';
-            badge.textContent=next;
-          }
-        });
-      }
+      if(decorating)return;
+      decorating=true;
+      try{
+        document.querySelectorAll('table').forEach(t=>attach(t as HTMLTableElement));
+        const active=document.querySelector('.tab.active')?.textContent?.trim()||'';
+        if(active==='Generated Notices'){
+          document.querySelectorAll('table tbody tr').forEach(row=>{
+            const cells=row.querySelectorAll('td');
+            const delivered=Number((cells[15]?.innerText||'0').replace(/,/g,''));
+            const pending=Number((cells[16]?.innerText||'0').replace(/,/g,''));
+            const anGen=Number((cells[6]?.innerText||'0').replace(/,/g,''));
+            const nmGen=Number((cells[10]?.innerText||'0').replace(/,/g,''));
+            const badge=cells[19]?.querySelector('.deliveryBadge');
+            if(badge){
+              const type=anGen>0&&nmGen>0?'MIXED':anGen>0?'ANOMALY':'NO MAPPING';
+              const base=pending>0&&delivered>0?'PARTIAL DELIVERY':pending>0?'PENDING DELIVERY':delivered>0?'FULLY DELIVERED':'NOT DELIVERED';
+              const next=`${base} · ${type}`;
+              if(badge.textContent!==next)badge.textContent=next;
+            }
+          });
+        }
+        if(active==='Pending'){
+          document.querySelectorAll('table tbody tr').forEach(row=>{
+            const cells=row.querySelectorAll('td');
+            const pgen=Number((cells[3]?.innerText||'0').replace(/,/g,''));
+            const pdel=Number((cells[4]?.innerText||'0').replace(/,/g,''));
+            const pct=Number((cells[5]?.innerText||'0').replace(/%/g,''));
+            const badge=cells[6]?.querySelector('.deliveryBadge');
+            if(badge){
+              let next='PENDING GENERATION';
+              if(pgen>0&&pdel>0)next='PARTIAL DELIVERY · PENDING GENERATION';
+              else if(pdel>0)next='PENDING DELIVERY';
+              else if(pgen>0&&pct>0)next='FULLY DELIVERED · PENDING GENERATION';
+              if(badge.textContent!==next)badge.textContent=next;
+            }
+          });
+        }
+      }finally{decorating=false}
     };
     const observer=new MutationObserver(decorate);
     observer.observe(document.body,{subtree:true,childList:true});
