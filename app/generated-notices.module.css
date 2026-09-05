@@ -1,0 +1,22 @@
+:global(.generatedSection){}
+:global(.genKpis){display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:10px 12px}
+:global(.smallKpis){grid-template-columns:repeat(7,1fr);padding-top:0}
+:global(.genKpis .card){min-height:88px}
+:global(.successKpi){border-color:#126449}.successKpi .value{color:#55e4a2!important}.successKpi .cardIcon{color:#27db93!important;background:#082a21!important;border-color:#125c47!important}
+:global(.warningKpi){border-color:#6c5712}.warningKpi .value{color:#ffd66b!important}.warningKpi .cardIcon{color:#ffd66b!important;background:#2a250d!important;border-color:#66520f!important}
+:global(.anomalyKpi){border-color:#762344}.anomalyKpi .value{color:#ff75a8!important}.anomalyKpi .cardIcon{color:#ff75a8!important;background:#2a1020!important;border-color:#6e2344!important}
+:global(.dangerKpi){border-color:#7b263e}.dangerKpi .value{color:#ff8fa9!important}.dangerKpi .cardIcon{color:#ff7f9d!important;background:#30121d!important;border-color:#7b263e!important}
+:global(.genFilters){grid-template-columns:minmax(280px,1.8fr) 1.1fr 1fr 1fr auto;border-top:1px solid #12364d;border-bottom:1px solid #12364d}
+:global(.deliveryBadge){display:inline-block;padding:4px 8px;border-radius:999px;font-size:9px;font-weight:850;letter-spacing:.3px;white-space:nowrap}
+:global(.deliveryBadge.fully-delivered){color:#66e5ac;background:#083222;border:1px solid #0e7048}
+:global(.deliveryBadge.partial){color:#ffd66b;background:#3a2c08;border:1px solid #6d5512}
+:global(.deliveryBadge.not-delivered){color:#ff9eb5;background:#3b101c;border:1px solid #7b263e}
+:global(.deliveryBadge.check),:global(.deliveryBadge.no-generated){color:#b7cbdd;background:#092238;border:1px solid #28506b}
+:global(.pendingNum){color:#ffd66b!important}.deliveryNum{color:#55e4a2!important;font-weight:800}.dangerNum{color:#ff8fa9!important;font-weight:800}
+:global(.tableFooter){padding:9px 12px;color:#718ba0;font-size:10px;border-top:1px solid #12364d}
+:global(.generatedSection .tablewrap){max-height:calc(100vh - 475px)}
+:global(.generatedSection table){min-width:1550px}
+:global(.generatedSection th){font-size:9px;text-transform:uppercase;letter-spacing:.25px}
+:global(.generatedSection td){font-size:10px}
+@media(max-width:1100px){:global(.genKpis){grid-template-columns:repeat(3,1fr)}:global(.smallKpis){grid-template-columns:repeat(4,1fr)}:global(.genFilters){grid-template-columns:1fr 1fr}}
+@media(max-width:700px){:global(.genKpis),:global(.smallKpis){grid-template-columns:1fr 1fr}:global(.genFilters){grid-template-columns:1fr}}
