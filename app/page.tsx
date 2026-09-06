@@ -28,43 +28,6 @@ const uploadRows=(rows:unknown[][],type:'eci'|'master')=>{
 function DashboardEnhancer(){
   useEffect(()=>{
     const sortState=new WeakMap<HTMLTableElement,{index:number,asc:boolean}>();
-    const ensureUploadPanel=()=>{
-      if(document.getElementById('eciWorkbookUploadPanel'))return;
-      const panel=document.createElement('div');
-      panel.id='eciWorkbookUploadPanel';
-      panel.style.cssText='position:fixed;top:76px;right:18px;z-index:99999;background:#111827;border:1px solid #334155;border-radius:12px;padding:10px 12px;box-shadow:0 12px 30px rgba(0,0,0,.35);font-family:Arial,sans-serif;min-width:260px;color:#e5e7eb';
-      panel.innerHTML=`<div style=\"font-weight:800;font-size:12px;margin-bottom:8px;letter-spacing:.2px\">DATA UPLOAD</div><div style=\"display:flex;gap:7px;flex-wrap:wrap\"><label style=\"cursor:pointer;background:#1d4ed8;color:white;padding:7px 10px;border-radius:7px;font-size:11px;font-weight:700\">UPLOAD MASTER EXCEL<input id=\"eciMasterUploadInput\" type=\"file\" accept=\".xlsx,.xls\" style=\"display:none\"></label><label style=\"cursor:pointer;background:#047857;color:white;padding:7px 10px;border-radius:7px;font-size:11px;font-weight:700\">UPLOAD ECI EXCEL<input id=\"eciEciUploadInput\" type=\"file\" accept=\".xlsx,.xls\" style=\"display:none\"></label></div><div id=\"eciUploadStatus\" style=\"font-size:10px;color:#94a3b8;margin-top:8px\">Master: ${localStorage.getItem('eci-master')?'Loaded':'Not loaded'} · ECI: ${localStorage.getItem('eci-current')?'Loaded':'Not loaded'}</div>`;
-      document.body.appendChild(panel);
-      const status=panel.querySelector('#eciUploadStatus') as HTMLElement;
-      const handle=async(file:File,type:'master'|'eci')=>{
-        status.textContent=`Reading ${type==='master'?'Master':'ECI'} workbook…`;
-        try{
-          const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
-          const preferred=type==='eci'?'sirNoticeGenerate':'Rough Data';
-          const ws=wb.Sheets[preferred]||wb.Sheets[wb.SheetNames[0]];
-          if(!ws)throw Error('Workbook has no readable worksheet.');
-          const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}) as unknown[][];
-          const parsed=uploadRows(rows,type);
-          if(type==='master'){
-            localStorage.setItem('eci-master',JSON.stringify(parsed));
-            status.textContent='Master uploaded successfully — reloading dashboard…';
-          }else{
-            localStorage.setItem('eci-current',JSON.stringify(parsed));
-            const now=new Date().toLocaleString('en-IN',{hour12:false});
-            localStorage.setItem('eci-updated',now);
-            const nums=(v:unknown)=>{const x=Number(v);return Number.isFinite(x)?x:0};
-            const item={time:now,kind:'ECI Upload',rows:parsed.length,generated:parsed.reduce((a:any,r:any)=>a+nums(r['Notice Generated']),0),pending:parsed.reduce((a:any,r:any)=>a+nums(r['Pending for Notice Generation']),0),delivered:parsed.reduce((a:any,r:any)=>a+nums(r['Notice Delivered']),0),pendingDelivery:parsed.reduce((a:any,r:any)=>a+nums(r['Notice Pending Delivery']),0)};
-            const old=JSON.parse(localStorage.getItem('eci-history')||'[]');
-            localStorage.setItem('eci-history',JSON.stringify([item,...(Array.isArray(old)?old:[])].slice(0,20)));
-            status.textContent='ECI uploaded successfully — reloading dashboard…';
-          }
-          window.setTimeout(()=>window.location.reload(),250);
-        }catch(err){status.textContent=(err instanceof Error?err.message:'Could not read workbook.');}
-      };
-      (panel.querySelector('#eciMasterUploadInput') as HTMLInputElement).addEventListener('change',e=>{const f=(e.target as HTMLInputElement).files?.[0];if(f)handle(f,'master')});
-      (panel.querySelector('#eciEciUploadInput') as HTMLInputElement).addEventListener('change',e=>{const f=(e.target as HTMLInputElement).files?.[0];if(f)handle(f,'eci')});
-    };
-    ensureUploadPanel();
     const parse=(v:string)=>{const x=v.replace(/,/g,'').replace(/%/g,'').trim();return x!==''&&Number.isFinite(Number(x))?Number(x):v.toLowerCase()};
     const normalize=(v:string)=>v.replace(/\s+/g,' ').trim().toUpperCase();
 
