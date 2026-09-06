@@ -1,6 +1,5 @@
 'use client';
 import { useEffect } from 'react';
-import * as XLSX from 'xlsx';
 import './generated-notices.module.css';
 import Dashboard from './EnhancedDashboard';
 
@@ -208,9 +207,15 @@ function DashboardEnhancer(){
         enhanceOverviewAnomalyTotal();
       }finally{decorating=false}
     };
-    const observer=new MutationObserver(decorate);
+    let scheduled=false;
+    const scheduleDecorate=()=>{
+      if(scheduled)return;
+      scheduled=true;
+      requestAnimationFrame(()=>{scheduled=false;decorate()});
+    };
+    const observer=new MutationObserver(scheduleDecorate);
     observer.observe(document.body,{subtree:true,childList:true});
-    decorate();
+    scheduleDecorate();
     return()=>observer.disconnect();
   },[]);
   return null;

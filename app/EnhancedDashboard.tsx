@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
 
 type Master={ps:number;oldPs:number|null;anomaly:number;mapping:number;grandTotal:number;blo:string;supervisor:string;officer:string;hearingCentre:string;address:string;locality:string;pollingArea:string;voters:number};
 type Eci=Record<string,unknown>&{ps:number};
@@ -40,7 +39,27 @@ const statusSelect=(value:string,onChange:(v:string)=>void,options:string[],labe
 
 useEffect(()=>{try{const m=localStorage.getItem('eci-master'),e=localStorage.getItem('eci-current'),t=localStorage.getItem('eci-updated'),h=localStorage.getItem('eci-history');if(m)setMaster(JSON.parse(m));if(e)setEci(JSON.parse(e));if(t)setUpdated(t);if(h)setHistory(JSON.parse(h))}catch{setError('Saved browser data could not be read.')}},[]);
 useEffect(()=>{if(!autoRefresh)return;const id=window.setInterval(()=>{try{const e=localStorage.getItem('eci-current'),t=localStorage.getItem('eci-updated');if(e)setEci(JSON.parse(e));if(t)setUpdated(t)}catch{}},30000);return()=>window.clearInterval(id)},[autoRefresh]);
-const upload=async(file:File,type:'eci'|'master')=>{setError('');try{const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),ws=type==='eci'?(wb.Sheets['sirNoticeGenerate']||wb.Sheets[wb.SheetNames[0]]):(wb.Sheets['Rough Data']||wb.Sheets[wb.SheetNames[0]]);if(!ws)throw Error('Required worksheet was not found.');const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}) as unknown[][];if(type==='eci'){const p=parseEci(rows),u=new Set(p.map(x=>x.ps));if(p.length!==430||u.size!==430)throw Error(`ECI file has ${p.length} unique valid PS rows; expected 430.`);setEci(p);const now=new Date().toLocaleString('en-IN',{hour12:false});setUpdated(now);localStorage.setItem('eci-current',JSON.stringify(p));localStorage.setItem('eci-updated',now);const item:HistoryItem={time:now,kind:'ECI Upload',rows:p.length,generated:p.reduce((a,r)=>a+n(r['Notice Generated']),0),pending:p.reduce((a,r)=>a+n(r['Pending for Notice Generation']),0),delivered:p.reduce((a,r)=>a+n(r['Notice Delivered']),0),pendingDelivery:p.reduce((a,r)=>a+n(r['Notice Pending Delivery']),0)};const next=[item,...history].slice(0,20);setHistory(next);localStorage.setItem('eci-history',JSON.stringify(next))}else{const p=parseMaster(rows),u=new Set(p.map(x=>x.ps));if(p.length!==430||u.size!==430)throw Error(`Master file has ${p.length} unique valid PS rows; expected 430.`);setMaster(p);localStorage.setItem('eci-master',JSON.stringify(p))}}catch(e){setError(e instanceof Error?e.message:'Could not read workbook.')}};
+const upload=async(file:File,type:'eci'|'master')=>{setError('');try{const XLSX=await import('xlsx');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),ws=type==='eci'?(wb.Sheets['sirNoticeGenerate']||wb.Sheets[wb.SheetNames[0]]):(wb.Sheets['Rough Data']||wb.Sheets[wb.SheetNames[0]]);if(!ws)throw Error('Required worksheet was not found.');const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}) as unknown[][];if(type==='eci'){const p=parseEci(rows),u=new Set(p.map(x=>x.ps));if(p.length!==430||u.size!==430)throw Error(`ECI file has ${p.length} unique valid PS rows; expected 430.`);setEci(p);const now=new Date().toLocaleString('en-IN',{hour12:false});setUpdated(now);localStorage.setItem('eci-current',JSON.stringify(p));localStorage.setItem('eci-updated',now);const item:HistoryItem={time:now,kind:'ECI Upload',rows:p.length,generated:p.reduce((a,r)=>a+n(r['Notice Generated']),0),pending:p.reduce((a,r)=>a+n(r['Pending for Notice Generation']),0),delivered:p.reduce((a,r)=>a+n(r['Notice Delivered']),0),pendingDelivery:p.reduce((a,r)=>a+n(r['Notice Pending Delivery']),0)};const next=[item,...history].slice(0,20);setHistory(next);localStorage.setItem('eci-history',JSON.stringify(next))}else{const p=parseMaster(rows),u=new Set(p.map(x=>x.ps));if(p.length!==430||u.size!==430)throw Error(`Master file has ${p.length} unique valid PS rows; expected 430.`);setMaster(p);localStorage.setItem('eci-master',JSON.stringify(p))}}catch(e){setError(e instanceof Error?e.message:'Could not read workbook.')}};
+useEffect(()=>{
+  const bindUploadButtons=()=>{
+    const bind=(needle:string,type:'eci'|'master')=>{
+      const els=Array.from(document.querySelectorAll('button,label,[role=\"button\"]')) as HTMLElement[];
+      const el=els.find(x=>(x.textContent||'').replace(/\s+/g,' ').trim().toLowerCase().includes(needle));
+      if(!el||el.dataset.uploadBridge==='1')return;
+      el.dataset.uploadBridge='1';
+      const input=document.createElement('input');
+      input.type='file'; input.accept='.xlsx,.xls';
+      input.style.cssText='position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;opacity:0;';
+      input.addEventListener('change',()=>{const file=input.files?.[0];if(file)void upload(file,type);input.value='';});
+      document.body.appendChild(input);
+      el.addEventListener('click',(ev)=>{ev.preventDefault();ev.stopImmediatePropagation();input.click();},true);
+    };
+    bind('upload eci excel','eci'); bind('load master','master');
+  };
+  bindUploadButtons();
+  const id=window.setInterval(bindUploadButtons,1000);
+  return()=>window.clearInterval(id);
+},[upload]);
 const joined=useMemo<Joined[]>(()=>{const mm=new Map(master.map(m=>[m.ps,m]));return eci.map(e=>{const m=mm.get(e.ps)||{ps:e.ps,oldPs:null,anomaly:0,mapping:0,grandTotal:0,blo:'',supervisor:'',officer:'',hearingCentre:'',address:'',locality:'',pollingArea:'',voters:0};return{...e,m,cat:category(e,m),map:mapped(e.ps)}})},[eci,master]);
 const cats=(k:keyof Cat)=>joined.reduce((a,r)=>a+n(r.cat[k]),0);const totalGen=cats('gen'),totalPGen=cats('pgen'),totalDel=cats('del'),totalPDel=cats('pdel'),totalNoMapping=cats('nmGen')+cats('nmPend'),deliveryPct=totalGen?totalDel/totalGen*100:0;const generatedRows=useMemo(()=>joined.filter(r=>r.cat.gen>0),[joined]);const officers=[...new Set(joined.map(r=>r.map?.officer||r.m.officer).filter(Boolean))];
 const genFiltered=useMemo(()=>generatedRows.filter(r=>(centreFilter==='All'||(r.map?.centre||r.m.hearingCentre)===centreFilter)&&(officerFilter==='All'||(r.map?.officer||r.m.officer)===officerFilter)&&(genStatusFilter==='All'||categoryStatuses(r).includes(genStatusFilter))&&(q===''||String(r.ps).includes(q)||key(r.m.oldPs).includes(key(q))||key(r.m.blo).includes(key(q))||key(r.m.locality).includes(key(q))||key(r.m.pollingArea).includes(key(q))||key(r.map?.officer||r.m.officer).includes(key(q))||key(r.map?.centre||r.m.hearingCentre).includes(key(q)))),[generatedRows,centreFilter,officerFilter,genStatusFilter,q]);
