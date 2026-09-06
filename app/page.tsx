@@ -118,23 +118,22 @@ function DashboardEnhancer(){
       try{
         const raw=localStorage.getItem('eci-master');
         const rows=raw?JSON.parse(raw):[];
-        if(Array.isArray(rows))masterTotal=rows.reduce((a,r)=>a+Number(r?.anomaly||0),0);
+        if(Array.isArray(rows))masterTotal=rows.reduce((x,r)=>x+Number(r?.anomaly||0),0);
       }catch{}
       if(!masterTotal)return;
-      const headings=Array.from(document.querySelectorAll('body *')).filter(el=>el.children.length===0 && (el.textContent||'').trim().toUpperCase()==='ANOMALY');
-      const heading=headings.find(el=>{const box=el.parentElement?.parentElement;return !!box && (box.textContent||'').includes('Pending Gen') && (box.textContent||'').includes('Delivered');});
+      document.querySelectorAll('[data-anomaly-master-total="1"]').forEach(el=>el.remove());
+      const heads=Array.from(document.querySelectorAll('body *')).filter(el=>el.children.length===0 && (el.textContent||'').trim().toUpperCase()==='ANOMALY');
+      const heading=heads.find(el=>{let p=el.parentElement;for(let i=0;i<6&&p;i++,p=p.parentElement){const t=p.textContent||'';if(t.includes('Generated')&&t.includes('Pending Gen')&&t.includes('Delivered')&&t.includes('Pending Del'))return true;}return false;});
       if(!heading)return;
-      const box=heading.parentElement?.parentElement;
-      if(!box)return;
-      if(box.querySelector('[data-anomaly-master-total="1"]'))return;
+      let card=heading.parentElement as HTMLElement|null;
+      while(card){const t=card.textContent||'';if(t.includes('Generated')&&t.includes('Pending Gen')&&t.includes('Delivered')&&t.includes('Pending Del'))break;card=card.parentElement;}
+      if(!card)return;
       const row=document.createElement('div');
       row.setAttribute('data-anomaly-master-total','1');
       row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08);';
-      row.innerHTML=`<span style="font-weight:600">Total Anomaly (Master)</span><strong style="font-size:15px">${masterTotal.toLocaleString('en-IN')}</strong>`;
-      const first=box.querySelector('div');
-      if(first?.parentElement===box)box.insertBefore(row,first);else box.prepend(row);
+      row.innerHTML='<span style="font-weight:700">Total Anomaly</span><strong style="font-size:15px">'+masterTotal.toLocaleString('en-IN')+'</strong>';
+      card.insertBefore(row,card.firstElementChild?.nextElementSibling||card.firstElementChild);
     };
-
     const attach=(table:HTMLTableElement)=>{
       enhancePSWiseStatus(table);
       enhanceGenerated(table);
