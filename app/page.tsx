@@ -111,6 +111,30 @@ function DashboardEnhancer(){
       }
     };
 
+    const enhanceOverviewAnomalyTotal=()=>{
+      const active=document.querySelector('.tab.active')?.textContent?.trim()||'';
+      if(active!=='Overview')return;
+      let masterTotal=0;
+      try{
+        const raw=localStorage.getItem('eci-master');
+        const rows=raw?JSON.parse(raw):[];
+        if(Array.isArray(rows))masterTotal=rows.reduce((a,r)=>a+Number(r?.anomaly||0),0);
+      }catch{}
+      if(!masterTotal)return;
+      const headings=Array.from(document.querySelectorAll('body *')).filter(el=>el.children.length===0 && (el.textContent||'').trim().toUpperCase()==='ANOMALY');
+      const heading=headings.find(el=>{const box=el.parentElement?.parentElement;return !!box && (box.textContent||'').includes('Pending Gen') && (box.textContent||'').includes('Delivered');});
+      if(!heading)return;
+      const box=heading.parentElement?.parentElement;
+      if(!box)return;
+      if(box.querySelector('[data-anomaly-master-total="1"]'))return;
+      const row=document.createElement('div');
+      row.setAttribute('data-anomaly-master-total','1');
+      row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08);';
+      row.innerHTML=`<span style="font-weight:600">Total Anomaly (Master)</span><strong style="font-size:15px">${masterTotal.toLocaleString('en-IN')}</strong>`;
+      const first=box.querySelector('div');
+      if(first?.parentElement===box)box.insertBefore(row,first);else box.prepend(row);
+    };
+
     const attach=(table:HTMLTableElement)=>{
       enhancePSWiseStatus(table);
       enhanceGenerated(table);
@@ -160,6 +184,7 @@ function DashboardEnhancer(){
       try{
         document.querySelectorAll('table').forEach(t=>attach(t as HTMLTableElement));
         enhanceGeneratedFilter();
+        enhanceOverviewAnomalyTotal();
       }finally{decorating=false}
     };
     const observer=new MutationObserver(decorate);
