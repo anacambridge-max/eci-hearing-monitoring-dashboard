@@ -19,13 +19,36 @@ function typedValue(value:string):ExportCell{
   if(/^[-+]?\d+(\.\d+)?%$/.test(v)){const n=Number(v.slice(0,-1));if(Number.isFinite(n))return n/100;}
   return v;
 }
-const line={style:'thin',color:{rgb:'CFD8E3'}};
-const header={font:{name:'Aptos',bold:true,color:'FFFFFF',sz:11},fill:{fgColor:{rgb:'1F4E78'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:line,bottom:line,left:line,right:line}};
-const title={font:{name:'Aptos Display',bold:true,color:'FFFFFF',sz:16},fill:{fgColor:{rgb:'17365D'}},alignment:{horizontal:'left',vertical:'center'}};
-const subtitle={font:{name:'Aptos',italic:true,color:'5B6573',sz:10},fill:{fgColor:{rgb:'EAF0F6'}},alignment:{vertical:'center'}};
-const body={font:{name:'Aptos',color:'17202A',sz:10},alignment:{vertical:'center'},border:{top:line,bottom:line,left:line,right:line}};
-const bodyAlt={...body,fill:{fgColor:{rgb:'F5F8FC'}}};
-const total={font:{name:'Aptos',bold:true,color:'17365D',sz:10},fill:{fgColor:{rgb:'D9EAF7'}},alignment:{vertical:'center'},border:{top:{style:'medium',color:{rgb:'1F4E78'}},bottom:line,left:line,right:line}};
+
+const navy='FF17365D';
+const blue='FF1F4E78';
+const blue2='FF2F75B5';
+const paleBlue='FFEAF2F8';
+const stripe='FFF5F8FC';
+const white='FFFFFFFF';
+const text='FF17202A';
+const muted='FF5B6573';
+const border='FFD0D9E3';
+const totalFill='FFD9EAF7';
+const totalBorder='FF2F75B5';
+
+const thin={style:'thin',color:{rgb:border}};
+const medium={style:'medium',color:{rgb:totalBorder}};
+const header={font:{name:'Aptos',bold:true,color:{rgb:white},sz:11},fill:{fgColor:{rgb:blue},patternType:'solid'},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:thin,bottom:thin,left:thin,right:thin}};
+const title={font:{name:'Aptos Display',bold:true,color:{rgb:white},sz:16},fill:{fgColor:{rgb:navy},patternType:'solid'},alignment:{horizontal:'center',vertical:'center'}};
+const subtitle={font:{name:'Aptos',italic:true,color:{rgb:muted},sz:10},fill:{fgColor:{rgb:paleBlue},patternType:'solid'},alignment:{horizontal:'left',vertical:'center'}};
+const body={font:{name:'Aptos',color:{rgb:text},sz:10},alignment:{vertical:'center'},border:{top:thin,bottom:thin,left:thin,right:thin}};
+const bodyAlt={font:{name:'Aptos',color:{rgb:text},sz:10},fill:{fgColor:{rgb:stripe},patternType:'solid'},alignment:{vertical:'center'},border:{top:thin,bottom:thin,left:thin,right:thin}};
+const total={font:{name:'Aptos',bold:true,color:{rgb:navy},sz:10},fill:{fgColor:{rgb:totalFill},patternType:'solid'},alignment:{vertical:'center'},border:{top:medium,bottom:medium,left:thin,right:thin}};
+
+function styleDataCell(cell:any, source:string, alt:boolean, headerText:string){
+  const h=headerText.toLowerCase();
+  let style=alt?bodyAlt:body;
+  if(/pending|lapsed|ineligible|not verified|anomaly/i.test(h))style={...style,fill:{fgColor:{rgb:alt?'FFF9F1F1':'FFFFF7F7'},patternType:'solid'}};
+  if(/delivered|held|verified|generated|eligible/i.test(h))style={...style,fill:{fgColor:{rgb:alt?'FFF1F8F3':'FFF8FCF9'},patternType:'solid'}};
+  if(typeof cell.v==='number')cell.z=/%$/.test(source)?'0.0%':'#,##0';
+  cell.s=style;
+}
 
 export default function ReportExport(){
   const[busy,setBusy]=useState(false);const[message,setMessage]=useState('');
@@ -37,41 +60,56 @@ export default function ReportExport(){
       for(const tabName of TAB_NAMES){
         if(tabName==='Settings')continue;
         const tabs=Array.from(document.querySelectorAll('.tab')) as HTMLElement[];const tab=tabs.find(x=>clean(x.textContent||'')===tabName);if(!tab)continue;
-        tab.click();await new Promise<void>(r=>setTimeout(r,220));
+        tab.click();await new Promise<void>(r=>setTimeout(r,250));
         const tables=Array.from(document.querySelectorAll('table')) as HTMLTableElement[];const raw:string[][]=[];
         tables.forEach(t=>{const part=tableToRows(t);if(part.length){if(raw.length)raw.push([]);raw.push(...part);}});if(!raw.length)continue;
         let name=tabName.replace(/[\\/?*\[\]:]/g,'').slice(0,31)||'Report';const base=name;let i=2;while(used.has(name)){name=(base.slice(0,27)+'_'+i++).slice(0,31);}used.add(name);
         const data=raw.map(r=>r.map(typedValue));
-        const rows:ExportCell[][]=[[tabName,'ECI Hearing & Notice Monitoring'],['Report generated',generated.toLocaleString('en-IN')],['Data source','Current dashboard'],[],...data];
+        const rows:ExportCell[][]=[[`${tabName} — AC-34 MATIALA`,'ECI Hearing & Notice Monitoring'],['Report generated',generated.toLocaleString('en-IN')],['Data source','Current dashboard data'],[],...data];
         const ws=XLSX.utils.aoa_to_sheet(rows);const maxCols=Math.max(...raw.map(r=>r.length),2);const last=rows.length-1;
         ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:maxCols-1}}];
         for(let c=0;c<maxCols;c++){const a=XLSX.utils.encode_cell({r:0,c});if(!ws[a])ws[a]={v:''};ws[a].s=title;}
         for(let c=0;c<maxCols;c++){const a=XLSX.utils.encode_cell({r:1,c});if(!ws[a])ws[a]={v:''};ws[a].s=subtitle;}
-        for(let c=0;c<maxCols;c++){const a=XLSX.utils.encode_cell({r:2,c});if(!ws[a])ws[a]={v:''};ws[a].s={...subtitle,font:{name:'Aptos',color:{rgb:'6B7280'},sz:9}};}
+        for(let c=0;c<maxCols;c++){const a=XLSX.utils.encode_cell({r:2,c});if(!ws[a])ws[a]={v:''};ws[a].s={...subtitle,font:{name:'Aptos',bold:true,color:{rgb:muted},sz:9}};}
         let sectionHeader=-1;
         for(let r=4;r<rows.length;r++){
           const source=raw[r-4]||[];
           if(!source.length){sectionHeader=-1;continue;}
           if(sectionHeader<0)sectionHeader=r;
           const first=clean(String(source[0]??''));const isTotal=/^(total|grand total|overall|sub[- ]?total)/i.test(first)||(/total/i.test(first)&&source.length<=3);
+          const headerTexts=raw[sectionHeader-4]||[];
           for(let c=0;c<maxCols;c++){
             const a=XLSX.utils.encode_cell({r,c});const cell=ws[a];if(!cell)continue;
-            if(r===sectionHeader)cell.s=header;else if(isTotal)cell.s=total;else cell.s=(r-sectionHeader)%2===0?bodyAlt:body;
-            if(typeof cell.v==='number')cell.z=/%$/.test(String(source[c]??''))?'0.0%':'#,##0';
+            if(r===sectionHeader)cell.s=header;
+            else if(isTotal)cell.s=total;
+            else styleDataCell(cell,String(source[c]??''),(r-sectionHeader)%2===0,String(headerTexts[c]??''));
             if(c===0)cell.s={...cell.s,alignment:{...cell.s.alignment,horizontal:'center'}};
           }
         }
-        const widths=Array.from({length:maxCols},(_,c)=>{const values=raw.map(r=>String(r[c]??''));const max=Math.max(9,...values.map(v=>Math.min(v.length,70)+2));const h=String(raw.find(r=>r.length)?.[c]??'');const cap=/Officer|Location|Centre|Address|Name|Remark|Status|Description/i.test(h)?52:/Date|Time/i.test(h)?22:30;return Math.min(cap,max);});
+        const widths=Array.from({length:maxCols},(_,c)=>{
+          const values=raw.map(r=>String(r[c]??''));
+          const max=Math.max(10,...values.map(v=>Math.min(v.length,80)+2));
+          const h=String(raw.find(r=>r.length)?.[c]??'').toLowerCase();
+          let cap=28;
+          if(/blo|officer|location|centre|address|name|remark|status|description|hearing/i.test(h))cap=48;
+          if(/date|time/i.test(h))cap=22;
+          if(/ps|no\.|number|generated|pending|delivery|total|percent|%/i.test(h))cap=18;
+          return Math.max(/ps|no\.|number/i.test(h)?11:10,Math.min(cap,max));
+        });
         ws['!cols']=widths.map(w=>({wch:w}));
-        ws['!rows']=[{hpt:30},{hpt:20},{hpt:18},{hpt:8},...Array(Math.max(0,last-3)).fill({hpt:20})];
-        ws['!freeze']={xSplit:0,ySplit:4};ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:4,c:0},e:{r:4+raw.length-1,c:maxCols-1}})};
-        ws['!pageSetup']={orientation:'landscape',fitToWidth:1,fitToHeight:0,paperSize:9};ws['!margins']={left:0.25,right:0.25,top:0.55,bottom:0.55,header:0.2,footer:0.2};
+        ws['!rows']=[{hpt:32},{hpt:21},{hpt:19},{hpt:9},...Array(Math.max(0,last-3)).fill({hpt:21})];
+        ws['!freeze']={xSplit:0,ySplit:4};
+        ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:4,c:0},e:{r:4+raw.length-1,c:maxCols-1}})};
+        ws['!pageSetup']={orientation:'landscape',fitToWidth:1,fitToHeight:0,paperSize:9};
+        ws['!margins']={left:0.25,right:0.25,top:0.55,bottom:0.55,header:0.2,footer:0.2};
+        ws['!printOptions']={horizontalCentered:false,verticalCentered:false};
         XLSX.utils.book_append_sheet(wb,ws,name);exported++;
       }
       const restore=Array.from(document.querySelectorAll('.tab')).find(x=>clean(x.textContent||'')===original) as HTMLElement|undefined;restore?.click();
       if(!exported)throw Error('No report tables were available to export.');
-      const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');XLSX.writeFile(wb,`ECI_Hearing_Reports_${stamp}.xlsx`);setMessage(`${exported} professional reports exported successfully`);
-    }catch(e){setMessage(e instanceof Error?e.message:'Excel export failed');}finally{setBusy(false);setTimeout(()=>setMessage(''),4500);}
+      const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');XLSX.writeFile(wb,`ECI_Hearing_Reports_${stamp}.xlsx`);setMessage(`${exported} professionally formatted reports exported successfully`);
+    }catch(e){setMessage(e instanceof Error?e.message:'Excel export failed');}
+    finally{setBusy(false);setTimeout(()=>setMessage(''),4500);}
   };
   return <><button onClick={exportAll} disabled={busy} title="Download all dashboard reports as a professionally formatted Excel workbook" style={{position:'fixed',right:22,top:18,zIndex:99999,border:'1px solid rgba(255,255,255,.18)',borderRadius:8,padding:'9px 14px',fontSize:12,fontWeight:800,cursor:busy?'wait':'pointer',background:'linear-gradient(180deg,#18243a,#101827)',color:'#fff',boxShadow:'0 6px 18px rgba(0,0,0,.28)'}}>{busy?'EXPORTING…':'↓ EXPORT ALL REPORTS'}</button>{message&&<div style={{position:'fixed',right:22,top:62,zIndex:99999,padding:'7px 11px',borderRadius:7,fontSize:11,fontWeight:700,background:'#101827',color:'#dbe7ff',border:'1px solid rgba(255,255,255,.12)'}}>{message}</div>}</>;
 }
