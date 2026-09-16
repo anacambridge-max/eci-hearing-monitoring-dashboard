@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import LowDeliveryReport from './LowDeliveryReport';
+import HearingDateEnhancer from './HearingDateEnhancer';
 
 export const metadata: Metadata = {
   title: 'ECI Hearing & Notice Monitoring Dashboard',
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<LowDeliveryReport /></body></html>;
+  return <html lang="en"><body>{children}<LowDeliveryReport /><HearingDateEnhancer /></body></html>;
 }
